@@ -10,9 +10,14 @@ try {
     if (!serviceAccountData) {
         throw new Error("FIREBASE_SERVICE_ACCOUNT variable is missing in environment settings!");
     }
-    
-    serviceAccount = JSON.parse(serviceAccountData);
-    
+
+    // መረጃው JSON መሆኑን ወይም አለመሆኑን ቼክ ያደርጋል
+    if (serviceAccountData.trim().startsWith('{')) {
+        serviceAccount = JSON.parse(serviceAccountData);
+    } else {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT is not a valid JSON string!");
+    }
+
     // የ Private Key ምልክቶችን ለ Render ማስተካከል
     if (serviceAccount.private_key) {
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
@@ -22,7 +27,6 @@ try {
         credential: admin.credential.cert(serviceAccount),
         databaseURL: "https://evpapp-354e3-default-rtdb.firebaseio.com"
     });
-
     console.log("✅ Firebase Admin በስኬት ተገናኝቷል!");
 } catch (error) {
     console.error("❌ የ Firebase አጀማመር ስህተት:", error.message);
@@ -33,6 +37,7 @@ const db = admin.database();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ADMIN_ID = 8708523632; 
 const GROUP_ID = "-1003755076161";
+
 let activeBonuses = {}; 
 
 // --- የቦቱ ተግባራት (Handlers) ---
@@ -47,15 +52,14 @@ bot.start((ctx) => {
 // የግብዣ ኮድ ምዝገባ (VIP 1+ ቼክ)
 bot.on('text', async (ctx) => {
     if (ctx.chat.type !== 'private' || ctx.from.id === ADMIN_ID) return;
-
     const inviteCode = ctx.message.text.trim();
-    
+
     try {
         const snapshot = await db.ref('users').orderByChild('inviteCode').equalTo(inviteCode).once('value');
         const userData = snapshot.val();
 
         if (!userData) return ctx.reply("❌ የተሳሳተ ኮድ ነው! እባክዎ በትክክል ያስገቡ።");
-        
+
         const userKey = Object.keys(userData)[0];
         const user = userData[userKey];
 
@@ -74,7 +78,6 @@ bot.on('text', async (ctx) => {
 // ቦነስ መልቀቂያ (3 ዙር 10-10-10)
 bot.command('drop_bonus', async (ctx) => {
     if (ctx.from.id !== ADMIN_ID) return;
-
     for (let i = 1; i <= 3; i++) {
         const bonusId = `bonus_${Date.now()}_${i}`;
         activeBonuses[bonusId] = { remainingSlots: 10, claimedBy: [], maxAmount: 15 };
@@ -90,6 +93,7 @@ bot.command('drop_bonus', async (ctx) => {
                 }
             }
         );
+
         // በየዙሩ 3 ሰከንድ መጠበቅ
         await new Promise(r => setTimeout(r, 3000));
     }
@@ -103,7 +107,7 @@ bot.on('callback_query', async (ctx) => {
     if (!activeBonuses[bonusId] || activeBonuses[bonusId].remainingSlots <= 0) {
         return ctx.answerCbQuery("ቦነሱ አልቋል!");
     }
-    
+
     const bonus = activeBonuses[bonusId];
     if (bonus.claimedBy.includes(userId)) {
         return ctx.answerCbQuery("በዚህ ዙር ወስደዋል!");
@@ -116,16 +120,16 @@ bot.on('callback_query', async (ctx) => {
         if (!userData) {
             return ctx.answerCbQuery("መጀመሪያ ቦቱ ላይ ገብተው የግብዣ ኮድዎን ያስመዝግቡ!", { show_alert: true });
         }
-        
+
         const userKey = Object.keys(userData)[0];
         const user = userData[userKey];
 
         if (user.vipLevel < 1) {
             return ctx.answerCbQuery("VIP 1 ጀምሮ አባል ካልሆኑ ቦነስ አይሳተፉም!", { show_alert: true });
         }
-        
+
         let amount = Math.floor(Math.random() * bonus.maxAmount) + 1;
-        
+
         // በዳታቤዙ ላይ ባላንስ መጨመር
         await db.ref(`users/${userKey}`).transaction((current) => {
             if (current) {
@@ -133,12 +137,11 @@ bot.on('callback_query', async (ctx) => {
             }
             return current;
         });
-        
+
         bonus.remainingSlots -= 1;
         bonus.claimedBy.push(userId);
-        
-        ctx.answerCbQuery(`እንኳን ደስ አለዎት! ${amount} ETB አግኝተዋል!`);
 
+        ctx.answerCbQuery(`እንኳን ደስ አለዎት! ${amount} ETB አግኝተዋል!`);
         bot.telegram.sendMessage(GROUP_ID, 
             `🎊 **ቦነስ ተረክበዋል!**\n` +
             `🔑 **Invitation Code:** \`${user.inviteCode}\`\n` +
