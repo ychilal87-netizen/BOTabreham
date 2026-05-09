@@ -4,14 +4,19 @@ require('dotenv').config();
 
 // 1. Firebase Admin Initialization (ከስህተት የጸዳ አጀማመር)
 try {
-    // በ Render ላይ በፈጠርነው Secret File አማካኝነት እንዲገናኝ ያደርጋል
     admin.initializeApp({
-        credential: admin.credential.applicationDefault(), 
+        credential: admin.credential.cert({
+            projectId: "evpapp-354e3",
+            clientEmail: "firebase-adminsdk-fbsvc@evpapp-354e3.iam.gserviceaccount.com",
+            // Render ላይ በምንሰጠው Key ውስጥ የ \n ምልክቶችን እንዲያስተካክል ተደርጓል
+            privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
+        }),
         databaseURL: "https://evpapp-354e3-default-rtdb.firebaseio.com"
     });
     console.log("✅ Firebase Admin በስኬት ተገናኝቷል!");
 } catch (error) {
     console.error("❌ የ Firebase አጀማመር ስህተት:", error.message);
+    process.exit(1); 
 }
 
 const db = admin.database();
@@ -120,7 +125,7 @@ bot.on('callback_query', async (ctx) => {
             `🎊 **ቦነስ ተረክበዋል!**\n` +
             `🔑 **Invitation Code:** \`${user.inviteCode}\`\n` +
             `💰 **መጠን:** +${amount} ETB\n` +
-            `🌟 **ለተጨማሪ መረጃ @Ethio_Jobs ን ይከታተሉ**`
+            `🌟 **ደረጃ:** VIP ${user.vipLevel}`
         );
     } catch (e) { 
         console.error(e);
