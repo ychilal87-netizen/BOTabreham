@@ -1,8 +1,8 @@
 const { Telegraf } = require('telegraf');
 const admin = require('firebase-admin');
 
-// 1. Firebase Admin Initialization (ቀጥታ ኮዱ ውስጥ)
-const serviceAccount = {
+// 1. Firebase Configuration (በቀጥታ እዚህ ተካቷል)
+const firebaseConfig = {
   "type": "service_account",
   "project_id": "evpapp-354e3",
   "private_key_id": "a14d48b8130418cc50a60895ab02ae9bc9069f46",
@@ -10,14 +10,15 @@ const serviceAccount = {
   "client_email": "firebase-adminsdk-fbsvc@evpapp-354e3.iam.gserviceaccount.com"
 };
 
+// 2. Firebase አጀማመር
 try {
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.cert(firebaseConfig),
         databaseURL: "https://evpapp-354e3-default-rtdb.firebaseio.com"
     });
     console.log("✅ Firebase Admin በስኬት ተገናኝቷል!");
 } catch (error) {
-    console.error("❌ የ Firebase አጀማመር ስህተት:", error.message);
+    console.error("❌ የ Firebase ስህተት:", error.message);
 }
 
 const db = admin.database();
@@ -26,7 +27,7 @@ const ADMIN_ID = 8708523632;
 const GROUP_ID = "-1003755076161";
 let activeBonuses = {}; 
 
-// --- የቦቱ ተግባራት (Handlers) ---
+// --- የቦቱ ስራዎች ---
 
 bot.start((ctx) => {
     if (ctx.chat.type === 'private') {
@@ -43,9 +44,7 @@ bot.on('text', async (ctx) => {
         if (!userData) return ctx.reply("❌ የተሳሳተ ኮድ ነው! እባክዎ በትክክል ያስገቡ።");
         const userKey = Object.keys(userData)[0];
         const user = userData[userKey];
-        if (!user.vipLevel || user.vipLevel < 1) {
-            return ctx.reply("⚠️ VIP 1 ጀምሮ አባል ካልሆኑ ቦነስ አይሳተፉም!");
-        }
+        if (!user.vipLevel || user.vipLevel < 1) return ctx.reply("⚠️ VIP 1 ጀምሮ አባል ካልሆኑ ቦነስ አይሳተፉም!");
         await db.ref(`users/${userKey}`).update({ telegram_id: ctx.from.id });
         ctx.reply(`✅ ተረጋግጧል! የግብዣ ኮድ #${inviteCode} አሁን ለቦነስ ዝግጁ ነው።`);
     } catch (e) { console.error(e); ctx.reply("ስህተት ተከስቷል!"); }
@@ -89,6 +88,4 @@ bot.on('callback_query', async (ctx) => {
     } catch (e) { console.error(e); ctx.answerCbQuery("ስህተት ተከስቷል!"); }
 });
 
-bot.launch().then(() => console.log("🚀 Telegram Bot ስራ ጀምሯል።"));
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+bot.launch().then(() => console.log("🚀 Telegram Bot ስራ ጀምሯል!"));
